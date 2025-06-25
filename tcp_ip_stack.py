@@ -48,13 +48,24 @@ def ethernet(packet: bytes) -> Union[bytes, None]:
     else:
         return dst_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
 """
+def is_our_packet(packet: bytes) -> bool:
+    """
+    Check if the packet was sent to us.
+
+    :return: True is was sent to us, false otherwise.
+    """
+    mac_list = [BROADCAST_MAC, MY_MAC, FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
+    if dst_mac.hex(MAC_SEPERATOR) in mac_list:
+        return True
+    return False
+
 
 def main():
     IFACES.show()
     iface = IFACE
     recv = [None, None, None]
 
-    while not isinstance(recv[RECV_PACKET_LOCATION], bytes):
+    while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
         recv = sock.recv_raw()  # Receive data
         if isinstance(recv[RECV_PACKET_LOCATION], bytes):
