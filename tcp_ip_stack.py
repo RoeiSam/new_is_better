@@ -57,5 +57,6 @@ def main() -> None:
             if is_our_packet(packet_data, iface):
                 dst_mac, src_mac, next_protocol, ether_data = parse_ether_packet(packet_data)
 
+
 if __name__ == "__main__":
     main()
