@@ -4,7 +4,7 @@ date: 25.06.2025
 purpose: Implement TCP/IP stack.
 """
 import argparse
-from scapy.all import conf, IFACES
+from scapy.all import conf, IFACES, get_if_hwaddr
 from struct import unpack, pack
 from typing import Union
 
@@ -16,8 +16,7 @@ FIRST_MULTICAST_MAC = "01:00:5e:00:00:16"
 SECOND_MULTICAST_MAC = "33:33:ff:a4:73:48"
 MAC_SEPERATOR = ':'
 ETHER_UNPACK_FORMAT = "6s6s2s"
-ETHET_TYPE_END = 14
-ETHER_DATA_START = 15
+ETHETET_HEADER_LENGTH = 14
 RECV_PACKET_LOCATION = 1
 ARP_TYPE = "0806"
 ARP_REPLY_ETHER_TYPE = 1
@@ -26,7 +25,7 @@ ARP_REPLY_HARDWARE_SIZE = 6
 ARP_REPLY_PROTOCOL_SIZE = 4
 ARP_REPLY_OPCODE = 2
 ARP_REQUEST_UNPACK = "H2sBBH6s4s6s4s"
-ARP_REPLY_PACK = "6S6S2SH2sBBH6s4s6s4s"
+ARP_REPLY_PACK = "6s6s2sH2sBBH6s4s6s4s"
 
 
 def get_args() -> str:
@@ -49,9 +48,9 @@ def handle_ethernet(packet: bytes) -> bytes:
     :param packet: The packet in raw data.
     :return: Detination mac, source mac, type of next protocol and the next layers.
     """
-    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHET_TYPE_END])
+    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
 
-    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
+    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHETET_HEADER_LENGTH:]
 
 
 def is_our_packet(packet: bytes, iface) -> bool:
@@ -62,7 +61,7 @@ def is_our_packet(packet: bytes, iface) -> bool:
     :param iface: Interface to check for.
     :return: True is was sent to us, false otherwise.
     """
-    mac_list = [BROADCAST_MAC, scapy.get_if_hwaddr(iface), FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
+    mac_list = [BROADCAST_MAC, get_if_hwaddr(iface), FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
     dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
     if dst_mac.hex(MAC_SEPERATOR) in mac_list:
         return True
@@ -77,32 +76,27 @@ def arp_reply(sock, packet: bytes) -> None:
     :param packet: The data of the arp request.
     :return: The reply to the arp request.
     """
-    print("arp reply")
     (hardware_type, protocol_type, hardware_size, protocol_size,
      opcode, src_mac, src_ip, dst_mac, dst_ip) = unpack(ARP_REQUEST_UNPACK, packet)
-    reply = pack(ARP_REPLY_PACK ,src_mac, dst_mac, ARP_TYPE, hardware_type, protocol_type,
+    reply = pack(ARP_REPLY_PACK ,src_mac, dst_mac, ARP_TYPE.encode(), hardware_type, protocol_type,
                 hardware_size, protocol_size, ARP_REPLY_OPCODE, dst_mac, dst_ip, src_mac, src_ip)
     sock.send(reply)
-    print(reply)
 
 def main():
-    IFACES.show()
+    # IFACES.show()
     args = get_args()
-    iface = args.interface()
-    print(iface)
-    recv = [None, None, None]
-    type = ""
+    iface = args.interface
+    # print(iface)
 
-    while (type != ARP_TYPE):
+    while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
         recv = sock.recv_raw()  # Receive data
         packet = recv[RECV_PACKET_LOCATION]
-        if (isinstance(packet, bytes)):
+        if isinstance(packet, bytes):
             if is_our_packet(packet, iface):
                 dst_mac, src_mac, next_protocol, ether_data = handle_ethernet(packet)
-                if(type == ARP_TYPE and dst_mac == BROADCAST_MAC):
-                    print(data, len(data))
-                    arp_reply(sock, data)
+                if(next_protocol == ARP_TYPE and dst_mac == BROADCAST_MAC):
+                    arp_reply(sock, ether_data)
     sock.close()
 
 
