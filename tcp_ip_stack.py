@@ -46,6 +46,7 @@ def handle_ethernet(packet: bytes) -> bytes:
     Implement the ethernet layer.
 
     :param packet: The packet in raw data.
+<<<<<<< HEAD
     :return: Detination mac, source mac, type of next protocol and the next layers.
     """
     dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
@@ -83,10 +84,8 @@ def arp_reply(sock, packet: bytes) -> None:
     sock.send(reply)
 
 def main():
-    # IFACES.show()
     args = get_args()
     iface = args.interface
-    # print(iface)
 
     while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
