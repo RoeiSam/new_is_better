@@ -28,9 +28,9 @@ def get_args() -> str:
     return parser.parse_args()
 
 
-def handle_ethernet(packet: bytes) -> bytes:
+def parse_ether_packet(packet: bytes) -> bytes:
     """
-    Implement the ethernet layer.
+    Extract the ethernet layer data.
 
     :param packet: The packet in raw data.
     :return: Detination mac, source mac, type of next protocol and the next layers.
@@ -42,22 +42,20 @@ def handle_ethernet(packet: bytes) -> bytes:
 
 def is_our_packet(packet: bytes, iface) -> bool:
     mac_list = [BROADCAST_MAC, scapy.get_if_hwaddr(iface), FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
-    dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
+    dst_mac, src_mac, next_protocol, ether_data = parse_ether_packet(packet_data)
     return dst_mac.hex(MAC_SEPERATOR) in mac_list
 
 
 def main() -> None:
     args = get_args()
-    iface = args.interface()
+    iface = args.interface
 
     while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
         class_, packet_data, timestamp = sock.recv_raw()  # Receive data
         if packet_data is not None:
             if is_our_packet(packet_data, iface):
-                dst_mac, src_mac, next_protocol, ether_data = handle_ethernet(packet_data)
-
-
+                dst_mac, src_mac, next_protocol, ether_data = parse_ether_packet(packet_data)
 
 if __name__ == "__main__":
     main()
