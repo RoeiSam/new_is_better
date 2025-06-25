@@ -13,7 +13,6 @@ SECOND_MULTICAST_MAC = "33:33:ff:a4:73:48"
 MAC_SEPERATOR = ':'
 ETHER_UNPACK_FORMAT = "6s6sH"
 ETHETET_HEADER_LENGTH = 14
-RECV_PACKET_LOCATION = 1
 
 
 def get_args() -> str:
@@ -42,33 +41,21 @@ def handle_ethernet(packet: bytes) -> bytes:
 
 
 def is_our_packet(packet: bytes, iface) -> bool:
-    """
-    Check if the packet was sent to us.
-
-    :param packet: Packet to check.
-    :param iface: Interface to check for.
-    :return: True is was sent to us, false otherwise.
-    """
     mac_list = [BROADCAST_MAC, scapy.get_if_hwaddr(iface), FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
     dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
-    if dst_mac.hex(MAC_SEPERATOR) in mac_list:
-        return True
-    return False
+    return dst_mac.hex(MAC_SEPERATOR) in mac_list
 
 
-def main():
-    IFACES.show()
+def main() -> None:
     args = get_args()
     iface = args.interface()
-    recv = [None, None, None]
 
     while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
-        recv = sock.recv_raw()  # Receive data
-        packet = recv[RECV_PACKET_LOCATION]
-        if isinstance(packet, bytes):
-            if is_our_packet(packet, iface):
-                dst_mac, src_mac, next_protocol, ether_data = handle_ethernet(packet)
+        class_, packet_data, timestamp = sock.recv_raw()  # Receive data
+        if packet_data is not None:
+            if is_our_packet(packet_data, iface):
+                dst_mac, src_mac, next_protocol, ether_data = handle_ethernet(packet_data)
 
 
 
