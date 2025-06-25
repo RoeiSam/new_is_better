@@ -5,7 +5,6 @@ purpose: Implement TCP/IP stack.
 """
 from scapy.all import conf, IFACES
 from struct import unpack
-from typing import Union
 
 IFACE = "Realtek RTL8852BE WiFi 6 802.11ax PCIe Adapter"
 MY_MAC = "f4:6a:dd:6e:a0:97"
@@ -18,36 +17,18 @@ ETHETET_HEADER_LENGTH = 14
 RECV_PACKET_LOCATION = 1
 
 
-def ethernet(packet: bytes) -> Union[bytes, None]:
+def handle_ethernet(packet: bytes) -> bytes:
     """
     Implement the ethernet layer.
 
     :param packet: The packet in raw data.
-    :return: The third layer and above if the packet is for this computer, None if not.
+    :return: Detination mac, source mac, type of next protocol and the next layers.
     """
-    mac_list = [BROADCAST_MAC, MY_MAC, FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
-    dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
-    if dst_mac.hex(MAC_SEPERATOR) not in mac_list:
-        return None
-
-    return packet[ETHETET_HEADER_LENGTH + 1:]
-
-"""
-def ethernet(packet: bytes) -> Union[bytes, None]:
-    
-    Implement the ethernet layer.
-
-    :param packet: The packet in raw data.
-    :return: The Destination mac, source mac, type of next protocol, and the data
-    of the layers above if the packet is for this computer, None if not for this computer.
-    
-    mac_list = [BROADCAST_MAC, MY_MAC, FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
     dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHET_TYPE_END])
-    if dst_mac.hex(MAC_SEPERATOR) not in mac_list:
-        return None, None, None
-    else:
-        return dst_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
-"""
+
+    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
+
+
 def is_our_packet(packet: bytes) -> bool:
     """
     Check if the packet was sent to us.
@@ -55,6 +36,7 @@ def is_our_packet(packet: bytes) -> bool:
     :return: True is was sent to us, false otherwise.
     """
     mac_list = [BROADCAST_MAC, MY_MAC, FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
+    dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
     if dst_mac.hex(MAC_SEPERATOR) in mac_list:
         return True
     return False
@@ -68,8 +50,10 @@ def main():
     while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
         recv = sock.recv_raw()  # Receive data
-        if isinstance(recv[RECV_PACKET_LOCATION], bytes):
-            ethernet(recv[RECV_PACKET_LOCATION])
+        packet = recv[RECV_PACKET_LOCATION]
+        if isinstance(packet, bytes):
+            if is_our_packet(packet):
+                dst_mac, src_mac, next_protocol, ether_data = handle_ethernet(packet)
 
 
 
