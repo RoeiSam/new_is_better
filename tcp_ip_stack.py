@@ -14,8 +14,7 @@ FIRST_MULTICAST_MAC = "01:00:5e:00:00:16"
 SECOND_MULTICAST_MAC = "33:33:ff:a4:73:48"
 MAC_SEPERATOR = ':'
 ETHER_UNPACK_FORMAT = "6s6sH"
-ETHET_TYPE_END = 14
-ETHER_DATA_START = 15
+ETHETET_HEADER_LENGTH = 14
 RECV_PACKET_LOCATION = 1
 
 
@@ -27,20 +26,34 @@ def ethernet(packet: bytes) -> Union[bytes, None]:
     :return: The third layer and above if the packet is for this computer, None if not.
     """
     mac_list = [BROADCAST_MAC, MY_MAC, FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
-    dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHET_TYPE_END])
+    dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
     if dst_mac.hex(MAC_SEPERATOR) not in mac_list:
         return None
+
+    return packet[ETHETET_HEADER_LENGTH + 1:]
+
+"""
+def ethernet(packet: bytes) -> Union[bytes, None]:
+    
+    Implement the ethernet layer.
+
+    :param packet: The packet in raw data.
+    :return: The Destination mac, source mac, type of next protocol, and the data
+    of the layers above if the packet is for this computer, None if not for this computer.
+    
+    mac_list = [BROADCAST_MAC, MY_MAC, FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
+    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHET_TYPE_END])
+    if dst_mac.hex(MAC_SEPERATOR) not in mac_list:
+        return None, None, None
     else:
-        return packet[ETHER_DATA_START:]
-
-
+        return dst_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
+"""
 
 def main():
     IFACES.show()
     iface = IFACE
     recv = [None, None, None]
 
-    # while(str(type(recv[RECV_PACKET_LOCATION])) != "<class 'bytes'>"):
     while (not isinstance(recv[RECV_PACKET_LOCATION], bytes)):
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
         recv = sock.recv_raw()  # Receive data
