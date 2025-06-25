@@ -54,10 +54,10 @@ def main():
     iface = IFACE
     recv = [None, None, None]
 
-    while (not isinstance(recv[RECV_PACKET_LOCATION], bytes)):
+    while not isinstance(recv[RECV_PACKET_LOCATION], bytes):
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
         recv = sock.recv_raw()  # Receive data
-        if (isinstance(recv[RECV_PACKET_LOCATION], bytes)):
+        if isinstance(recv[RECV_PACKET_LOCATION], bytes):
             ethernet(recv[RECV_PACKET_LOCATION])
 
 
