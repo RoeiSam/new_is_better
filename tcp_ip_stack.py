@@ -6,23 +6,14 @@ purpose: Implement TCP/IP stack.
 import argparse
 from scapy.all import conf, IFACES, get_if_hwaddr
 from struct import unpack, pack
-from typing import Union
 
-IFACE = "Realtek RTL8852BE WiFi 6 802.11ax PCIe Adapter"
-MY_MAC = "f4:6a:dd:6e:a0:97"
-MY_IP = "192.168.1.16"
 BROADCAST_MAC = "ff:ff:ff:ff:ff:ff"
 FIRST_MULTICAST_MAC = "01:00:5e:00:00:16"
 SECOND_MULTICAST_MAC = "33:33:ff:a4:73:48"
 MAC_SEPERATOR = ':'
 ETHER_UNPACK_FORMAT = "6s6s2s"
 ETHETET_HEADER_LENGTH = 14
-RECV_PACKET_LOCATION = 1
 ARP_TYPE = "0806"
-ARP_REPLY_ETHER_TYPE = 1
-IPV4_TYPE = "0800"
-ARP_REPLY_HARDWARE_SIZE = 6
-ARP_REPLY_PROTOCOL_SIZE = 4
 ARP_REPLY_OPCODE = 2
 ARP_REQUEST_UNPACK = "H2sBBH6s4s6s4s"
 ARP_REPLY_PACK = "6s6s2sH2sBBH6s4s6s4s"
@@ -48,9 +39,9 @@ def parse_ether_packet(packet: bytes) -> bytes:
     :param packet: The packet in raw data.
     :return: Detination mac, source mac, type of next protocol and the next layers.
     """
-    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHET_TYPE_END])
+    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
 
-    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
+    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHETET_HEADER_LENGTH:]
 
 
 
@@ -91,7 +82,7 @@ def main():
         if packet_data is not None:
             if is_our_packet(packet_data, iface):
                 dst_mac, src_mac, next_protocol, ether_data = parse_ether_packet(packet_data)
-                if(next_protocol == ARP_TYPE and dst_mac == BROADCAST_MAC):
+                if(next_protocol == ARP_TYPE and dst_mac == BROADCAST_MAC): # Check if packet is arp request
                     arp_reply(sock, ether_data)
     sock.close()
 
