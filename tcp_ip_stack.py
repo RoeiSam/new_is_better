@@ -41,17 +41,17 @@ def get_args() -> str:
     return parser.parse_args()
 
 
-def handle_ethernet(packet: bytes) -> bytes:
+def parse_ether_packet(packet: bytes) -> bytes:
     """
-    Implement the ethernet layer.
+    Extract the ethernet layer data.
 
     :param packet: The packet in raw data.
-<<<<<<< HEAD
     :return: Detination mac, source mac, type of next protocol and the next layers.
     """
-    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
+    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHET_TYPE_END])
 
-    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHETET_HEADER_LENGTH:]
+    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHER_DATA_START:]
+
 
 
 def is_our_packet(packet: bytes, iface) -> bool:
@@ -64,9 +64,7 @@ def is_our_packet(packet: bytes, iface) -> bool:
     """
     mac_list = [BROADCAST_MAC, get_if_hwaddr(iface), FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
     dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
-    if dst_mac.hex(MAC_SEPERATOR) in mac_list:
-        return True
-    return False
+    return dst_mac.hex(MAC_SEPERATOR) in mac_list
 
 
 def arp_reply(sock, packet: bytes) -> None:
@@ -89,11 +87,10 @@ def main():
 
     while True:
         sock = conf.L2socket(iface=iface, promisc=True)  # Create the socket
-        recv = sock.recv_raw()  # Receive data
-        packet = recv[RECV_PACKET_LOCATION]
-        if isinstance(packet, bytes):
-            if is_our_packet(packet, iface):
-                dst_mac, src_mac, next_protocol, ether_data = handle_ethernet(packet)
+        class_, packet_data, timestamp = sock.recv_raw()  # Receive data
+        if packet_data is not None:
+            if is_our_packet(packet_data, iface):
+                dst_mac, src_mac, next_protocol, ether_data = parse_ether_packet(packet_data)
                 if(next_protocol == ARP_TYPE and dst_mac == BROADCAST_MAC):
                     arp_reply(sock, ether_data)
     sock.close()
