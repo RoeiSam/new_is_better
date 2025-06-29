@@ -11,9 +11,6 @@ from scapy.all import conf, IFACES
 ARP_TYPE = "0806"
 
 
-arp_cache = {}
-
-
 def get_args() -> str:
     """
     Get arguments from command line.
