@@ -4,15 +4,13 @@ date: 25.06.2025
 purpose: Implement TCP/IP stack.
 """
 import argparse
-from scapy.all import conf, IFACES, get_if_hwaddr, get_if_addr
+from ethernet import parse_ether_packet, is_our_packet
+from scapy.all import conf, IFACES, get_if_hwaddr
 from struct import unpack, pack
 
 BROADCAST_MAC = "ff:ff:ff:ff:ff:ff"
-FIRST_MULTICAST_MAC = "01:00:5e:00:00:16"
-SECOND_MULTICAST_MAC = "33:33:ff:a4:73:48"
 MAC_SEPERATOR = ':'
-ETHER_UNPACK_FORMAT = "6s6s2s"
-ETHETET_HEADER_LENGTH = 14
+IP_SEPERATOR = '.'
 ARP_TYPE = "0806"
 ARP_REPLY_OPCODE = 2
 ARP_REQUEST_OPCODE = 1
@@ -38,32 +36,6 @@ def get_args() -> str:
                         help="the interface to work with")
 
     return parser.parse_args()
-
-
-def parse_ether_packet(packet: bytes) -> bytes:
-    """
-    Extract the ethernet layer data.
-
-    :param packet: The packet in raw data.
-    :return: Detination mac, source mac, type of next protocol and the next layers.
-    """
-    dst_mac, src_mac, type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
-
-    return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHETET_HEADER_LENGTH:]
-
-
-
-def is_our_packet(packet: bytes, iface) -> bool:
-    """
-    Check if the packet was sent to us.
-
-    :param packet: Packet to check.
-    :param iface: Interface to check for.
-    :return: True is was sent to us, false otherwise.
-    """
-    mac_list = [BROADCAST_MAC, get_if_hwaddr(iface), FIRST_MULTICAST_MAC, SECOND_MULTICAST_MAC]
-    dst_mac, src_mac, ether_type = unpack(ETHER_UNPACK_FORMAT, packet[:ETHETET_HEADER_LENGTH])
-    return dst_mac.hex(MAC_SEPERATOR) in mac_list
 
 
 def arp_reply(sock, packet: bytes) -> None:
@@ -98,14 +70,16 @@ def arp_request(dst_ip: str, src_ip: str, src_mac: str, sock) -> None:
     sock.send(request)
 
 
-daf add_to_arp_cache(data: bytes) -> None:
+def add_to_arp_cache(data: bytes) -> None:
     """
     Extract mac and ip from the data of arp reply and add to arp cache.
     """
+    print(data)
     (hardware_type, protocol_type, hardware_size, protocol_size,
     opcode, src_mac, src_ip, dst_mac, dst_ip) = unpack(ARP_FORMAT, data)
-    if src_ip not in arp_cache:
-        arp_cache[src_ip] = src_mac
+    if src_ip.hex(IP_SEPERATOR) not in arp_cache:
+        arp_cache[src_ip.hex(IP_SEPERATOR)] = src_mac.hex(MAC_SEPERATOR)
+        print(arp_cache)
 
 
 def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
@@ -119,8 +93,8 @@ def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
     :iface: The interface we are working with.
     """
     if dst_mac == BROADCAST_MAC:  # Check if packet is arp request
-        arp_reply(sock, ether_data)
-    else if dst_mac == get_if_hwaddr(iface): # Check if packet is arp reply
+        arp_reply(sock, data)
+    elif dst_mac == get_if_hwaddr(iface): # Check if packet is arp reply
         add_to_arp_cache(data)
 
 
