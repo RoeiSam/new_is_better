@@ -24,6 +24,8 @@ ARP_HARDWARE_SIZE = 6
 ARP_PROTOCOL_SIZE = 4
 ARP_REQUEST_DST_MAC = "00:00:00:00:00:00"
 
+arp_cache = {}
+
 
 def get_args() -> str:
     """
@@ -96,6 +98,16 @@ def arp_request(dst_ip: str, src_ip: str, src_mac: str, sock) -> None:
     sock.send(request)
 
 
+daf add_to_arp_cache(data: bytes) -> None:
+    """
+    Extract mac and ip from the data of arp reply and add to arp cache.
+    """
+    (hardware_type, protocol_type, hardware_size, protocol_size,
+    opcode, src_mac, src_ip, dst_mac, dst_ip) = unpack(ARP_FORMAT, data)
+    if src_ip not in arp_cache:
+        arp_cache[src_ip] = src_mac
+
+
 def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
     """
     Hnadle arp packets.
@@ -109,8 +121,7 @@ def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
     if dst_mac == BROADCAST_MAC:  # Check if packet is arp request
         arp_reply(sock, ether_data)
     else if dst_mac == get_if_hwaddr(iface): # Check if packet is arp reply
-        pass
-        #add_to_arp_cache()
+        add_to_arp_cache(data)
 
 
 def main():
