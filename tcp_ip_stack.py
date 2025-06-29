@@ -70,7 +70,7 @@ def arp_reply(sock, packet: bytes) -> None:
 
     :param sock: Socket to answer with.
     :param packet: The data of the arp request.
-    :return: The reply to the arp request.
+    :return: None.
     """
     (hardware_type, protocol_type, hardware_size, protocol_size,
      opcode, src_mac, src_ip, dst_mac, dst_ip) = unpack(ARP_FORMAT, packet)
@@ -88,6 +88,7 @@ def arp_request(dst_ip: str, src_ip: str, src_mac: str, sock) -> None:
     :param src_ip: Soutce ip of the request.
     :param src_mac: Soutce mac of the request.
     :param sock: The socket to send the request.
+    :return None
     """
     request = pack(ETHER_AND_ARP_FORMAT, BROADCAST_MAC, src_mac, ARP_TYPE, ARP_ETHER_TYPE,
                    IPV4_TYPE, ARP_HARDWARE_SIZE, ARP_PROTOCOL_SIZE, ARP_REQUEST_OPCODE, get_if_hwaddr(iface),
@@ -95,9 +96,10 @@ def arp_request(dst_ip: str, src_ip: str, src_mac: str, sock) -> None:
     sock.send(request)
 
 
-def handle_arp(sock, data: bytes, dst_mac, iface) -> None:
+def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
     """
     Hnadle arp packets.
+    Check if arp packet are request or reply and act as needed.
 
     :param sock: The socket to send packets with.
     :param data: Only tha data of tha ARP protocol.
