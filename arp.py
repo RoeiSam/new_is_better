@@ -4,6 +4,7 @@ date: 29.06.2025
 purpose: Implement protocol ARP.
 """
 from enum import Enum
+from ethernet import encapsule_data
 from scapy.all import get_if_hwaddr
 from struct import unpack, pack
 
@@ -22,39 +23,38 @@ ARP_IP_PROTOCOL_SIZE = 4
 ARP_REQUEST_DST_MAC = "00:00:00:00:00:00"
 BROADCAST_MAC = "ff:ff:ff:ff:ff:ff"
 MAC_SEPERATOR = ':'
-IP_SEPERATOR = '.'
 
 arp_cache = {}
 
-def send_arp_reply(sock, packet: bytes) -> None:
+
+def arp_reply(sock, packet: bytes) -> bytes:
     """
-    Send an ARP reply.
+    Pack and return an ARP reply.
 
     :param sock: Socket to answer with.
     :param packet: The data of the ARP protocol in the ARP request.
-    :return: None.
+    :return: Tha ARP protocol reply data.
     """
     (hardware_type, protocol_type, hardware_size, protocol_size,
      opcode, src_mac, src_ip, dst_mac, dst_ip) = unpack(ARP_FORMAT, packet)
-    reply = pack(ETHER_AND_ARP_FORMAT ,src_mac, dst_mac, ProtocolType.ARP_TYPE.value, hardware_type, protocol_type,
-                hardware_size, protocol_size, ArpOpcode.ARP_REPLY_OPCODE.value, dst_mac, dst_ip, src_mac, src_ip)
-    sock.send(reply)
+    reply_data = pack(ARP_FORMAT ,hardware_type, protocol_type, hardware_size, protocol_size,
+                 ArpOpcode.ARP_REPLY_OPCODE.value, dst_mac, dst_ip, src_mac, src_ip)
+    return reply_data, dst_mac, src_mac
 
 
-def send_arp_request(dst_ip: str, src_ip: str, src_mac: str, sock) -> None:
+def arp_request(dst_ip: str, src_ip: str, src_mac: str, sock) -> None:
     """
-    Send ARP request.
+    Pack and return ARP request.
 
     :param dst_ip: IP to ask in the request.
     :param src_ip: Source IP of the request.
     :param src_mac: Source mac of the request.
     :param sock: The socket to send the request.
-    :return None
+    :return Tha ARP protocol request data.
     """
-    request = pack(ETHER_AND_ARP_FORMAT, BROADCAST_MAC, src_mac, ProtocolType.ARP_TYPE.value, ARP_ETHER_TYPE,
-                   ProtocolType.IPV4_TYPE.value, ARP_ETHER_HARDWARE_SIZE, ARP_IP_PROTOCOL_SIZE, ArpOpcode.ARP_REQUEST_OPCODE, get_if_hwaddr(iface),
-                   src_ip, ARP_REQUEST_DST_MAC, dst_ip)
-    sock.send(request)
+    request_data = pack(ARP_FORMAT, ARP_ETHER_TYPE, ProtocolType.IPV4_TYPE.value, ARP_ETHER_HARDWARE_SIZE,
+                   ARP_IP_PROTOCOL_SIZE, ArpOpcode.ARP_REQUEST_OPCODE, get_if_hwaddr(iface),src_ip, ARP_REQUEST_DST_MAC, dst_ip)
+    return request_data
 
 
 def add_to_arp_cache(src_ip, src_mac) -> None:
@@ -63,6 +63,14 @@ def add_to_arp_cache(src_ip, src_mac) -> None:
     """
     if src_ip not in arp_cache:
         arp_cache[src_ip] = src_mac
+
+
+def send_ether_arp(data: bytes, dst_mac, src_mac, sock) -> None:
+    """
+    Send ARP packet encapsulated in ETHER protocol.
+    """
+    packet = encapsule_data(data, len(data), dst_mac, src_mac, ProtocolType.ARP_TYPE.value)
+    sock.send(packet)
 
 
 def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
@@ -78,6 +86,7 @@ def handle_arp(sock, data: bytes, dst_mac: str, iface: str) -> None:
     (hardware_type, protocol_type, hardware_size, protocol_size,
      opcode, src_mac, src_ip, dst_mac, dst_ip) = unpack(ARP_FORMAT, data)
     if opcode == ArpOpcode.ARP_REQUEST_OPCODE:  # Check if packet is arp request
-        send_arp_reply(sock, data)
+        reply_data, dst_mac, src_mac = arp_reply(sock, data)
+        send_ether_arp(reply_data, dst_mac, src_mac)
     elif opcode == ArpOpcode.ARP_REPLY_OPCODE: # Check if packet is arp reply
         add_to_arp_cache(src_ip, src_mac)
