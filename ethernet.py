@@ -26,6 +26,19 @@ def parse_ether_packet(packet: bytes) -> bytes:
     return dst_mac.hex(MAC_SEPERATOR), src_mac.hex(MAC_SEPERATOR), type.hex(), packet[ETHETET_HEADER_LENGTH:]
 
 
+def encapsule_data(data: bytes, data_len: int, dst_mac: bytes, src_mac: bytes, protocol_type: bytes) -> bytes:
+    """
+    Encapsule data in ETHER protocol.
+
+    :param data: The data to encapsule.
+    :param data_len: The length of the data.
+    :param dst_mac: The destination mac.
+    :param src_mac: The source mac.
+    :param protocol_type: The protocol type of the data outer layer.
+    :return: The encapsuled data.
+    """
+    packet = pack(f"{ETHER_FORMAT}{data_len}s", dst_mac, src_mac, protocol_type, data)
+    return packet
 
 def is_our_packet(packet: bytes, iface) -> bool:
     """
